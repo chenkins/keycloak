@@ -75,10 +75,12 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.UserSessionProvider;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.protocol.ProtocolMapperUtils;
 import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.protocol.oidc.TokenManager.AccessTokenResponseBuilder;
+import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.AccessToken.Authorization;
 import org.keycloak.representations.IDToken;
@@ -380,6 +382,13 @@ public class AuthorizationTokenService {
         if (!rpt.hasAudience(targetClient.getClientId())) {
             rpt.audience(targetClient.getClientId());
         }
+
+        // / https://github.com/keycloak/keycloak/issues/22096
+        final UserSessionModel userSession = userSessionModel;
+        ProtocolMapperUtils.getSortedProtocolMappers(keycloakSession, clientSessionCtx)
+                .filter(mapper -> mapper.getValue() instanceof OIDCAccessTokenMapper)
+                .forEach(mapper -> ((OIDCAccessTokenMapper) mapper.getValue()).transformAccessToken(rpt, mapper.getKey(), keycloakSession, userSession, clientSessionCtx));
+        // \
 
         return new AuthorizationResponse(responseBuilder.build(), isUpgraded(request, authorization));
     }
